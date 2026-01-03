@@ -4,6 +4,11 @@ on:
   push:
     branches: [ "main" ]
 
+permissions:
+  contents: write
+  pages: write
+  id-token: write   # optional (only needed for some actions)
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -14,8 +19,15 @@ jobs:
           node-version: '20'
       - run: npm ci
       - run: npm run build
+      - name: Verify build output
+        run: |
+          echo "Working directory: $(pwd)"
+          echo "Contents:" 
+          ls -la
+          if [ -d ./dist ]; then echo "dist exists:"; ls -la ./dist; else echo "dist missing"; fi
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # Use a repo secret named DEPLOY_TOKEN (PAT with repo + pages + workflow write permissions)
+          github_token: ${{ secrets.DEPLOY_TOKEN }}
           publish_dir: ./dist
