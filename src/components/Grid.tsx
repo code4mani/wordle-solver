@@ -1,8 +1,18 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { makeEmptyGrid, Row, Cell, CellStatus, parseFeedback } from '../utils/feedback'
+import { makeEmptyGrid, Row, Cell, CellStatus, parseFeedback, letterStatusMap } from '../utils/feedback'
+import Keyboard from './Keyboard'
 
 type Props = {
-  onChange?: (constraints: { pattern: string; includes: string; excludes: string }) => void
+  onChange?: (
+    constraints: {
+      pattern: string
+      includes: string
+      excludes: string
+      minCounts?: Record<string, number>
+      maxCounts?: Record<string, number>
+      positionExcludes?: Record<string, number[]>
+    },
+  ) => void
   suggestions?: string[]
   onFillSuggestion?: (word: string) => void
 }
@@ -15,6 +25,47 @@ export default function Grid({ onChange, suggestions = [], onFillSuggestion }: P
   useEffect(() => {
     onChange?.(parseFeedback(grid))
   }, [grid, onChange])
+
+  const letterStatuses = letterStatusMap(grid)
+
+  const onScreenKey = useCallback((key: string) => {
+    if (key === 'Backspace') {
+      setGrid((g) => {
+        const copy = g.map((row) => row.map((cell) => ({ ...cell })))
+        let c = colIndexRef.current
+        if (c > 0) c -= 1
+        copy[rowIndex][c].letter = ''
+        copy[rowIndex][c].status = 'empty'
+        colIndexRef.current = c
+        return copy
+      })
+      return
+    }
+
+    if (key === 'Enter') {
+      const row = grid[rowIndex]
+      if (row && row.every((cell) => cell.letter)) {
+        setRowIndex((r) => Math.min(r + 1, grid.length - 1))
+        colIndexRef.current = 0
+      }
+      return
+    }
+
+    if (/^[a-zA-Z]$/.test(key)) {
+      setGrid((g) => {
+        const copy = g.map((row) => row.map((cell) => ({ ...cell })))
+        const c = colIndexRef.current
+        if (c < copy[rowIndex].length) {
+          copy[rowIndex][c].letter = key.toLowerCase()
+          copy[rowIndex][c].status = 'empty'
+          colIndexRef.current = Math.min(c + 1, copy[rowIndex].length)
+        }
+        return copy
+      })
+      return
+    }
+  }, [grid, rowIndex])
+
 
   const toggleStatus = useCallback((r: number, c: number) => {
     setGrid((g) => {
@@ -132,6 +183,8 @@ export default function Grid({ onChange, suggestions = [], onFillSuggestion }: P
           </button>
           <button onClick={reset}>Reset</button>
         </div>
+
+        <Keyboard statuses={letterStatuses} onKey={onScreenKey} />
 
         <p className="hint muted">Type letters, press Enter to move to next row. Click tiles to cycle feedback (gray → yellow → green).</p>
       </div>

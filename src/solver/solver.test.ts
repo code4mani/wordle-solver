@@ -7,10 +7,16 @@ describe('solver basics', () => {
     expect(matchPattern('crane', 'c.r.n')).toBe(false)
   })
 
-  it('filterWords respects includes/excludes', () => {
+  it('filterWords respects min/max counts (includes/excludes)', () => {
     const words = ['crane', 'slate', 'apple']
-    expect(filterWords(words, '.....', 'a', '')).toEqual(['crane', 'slate', 'apple'])
-    expect(filterWords(words, '.....', 'p', '')).toEqual(['apple'])
-    expect(filterWords(words, '.....', '', 'p')).toEqual(['crane', 'slate'])
+    expect(filterWords(words, '.....', { a: 1 }, {})).toEqual(['crane', 'slate', 'apple'])
+    expect(filterWords(words, '.....', { p: 1 }, {})).toEqual(['apple'])
+    expect(filterWords(words, '.....', {}, { p: 0 })).toEqual(['crane', 'slate'])
+  })
+
+  it('handles repeated-letter constraints', () => {
+    const words = ['apple', 'spare', 'spade', 'caper']
+    // enforce exactly one 'p'
+    expect(filterWords(words, '.....', { p: 1 }, { p: 1 })).toEqual(['spare', 'spade', 'caper'])
   })
 })

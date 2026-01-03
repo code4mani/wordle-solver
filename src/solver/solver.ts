@@ -11,18 +11,35 @@ export function matchPattern(word: string, pattern: string) {
 export function filterWords(
   words: string[],
   pattern: string,
-  includes = '',
-  excludes = '',
+  minCounts: Record<string, number> = {},
+  maxCounts: Record<string, number> = {},
+  positionExcludes: Record<string, number[]> = {},
 ) {
   if (pattern.length !== 5) throw new Error('pattern length must be 5')
-  const incSet = new Set(includes.toLowerCase())
-  const excSet = new Set(excludes.toLowerCase())
 
   return words.filter((w) => {
     const lw = w.toLowerCase()
     if (!matchPattern(lw, pattern.toLowerCase())) return false
-    for (const ch of incSet) if (!lw.includes(ch)) return false
-    for (const ch of excSet) if (lw.includes(ch)) return false
+
+    // Check min counts
+    for (const [ch, min] of Object.entries(minCounts)) {
+      const count = lw.split(ch).length - 1
+      if (count < min) return false
+    }
+
+    // Check max counts
+    for (const [ch, max] of Object.entries(maxCounts)) {
+      const count = lw.split(ch).length - 1
+      if (count > max) return false
+    }
+
+    // Position excludes: for any letter, it must not appear at excluded positions
+    for (const [ch, positions] of Object.entries(positionExcludes)) {
+      for (const pos of positions) {
+        if (lw[pos] === ch) return false
+      }
+    }
+
     return true
   })
 }

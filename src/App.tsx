@@ -5,11 +5,17 @@ import Grid from './components/Grid'
 import { parseFeedback } from './utils/feedback'
 
 export default function App() {
-  const [constraints, setConstraints] = useState({ pattern: '.....', includes: '', excludes: '' })
+  const [constraints, setConstraints] = useState({ pattern: '.....', includes: '', excludes: '', minCounts: {}, maxCounts: {} as Record<string, number>, positionExcludes: {} as Record<string, number[]> })
 
   const candidates = useMemo(() => {
     try {
-      return filterWords(words as string[], constraints.pattern, constraints.includes, constraints.excludes)
+      return filterWords(
+        words as string[],
+        constraints.pattern,
+        constraints.minCounts as Record<string, number>,
+        constraints.maxCounts as Record<string, number>,
+        constraints.positionExcludes as Record<string, number[]>,
+      )
     } catch (err) {
       return []
     }
@@ -36,15 +42,50 @@ export default function App() {
 
         <section className="constraints">
           <h3>Active Constraints</h3>
+
           <p>
             <strong>Pattern:</strong> <code>{constraints.pattern}</code>
           </p>
+
           <p>
             <strong>Includes:</strong> {constraints.includes || '\u2014'}
           </p>
+
           <p>
             <strong>Excludes:</strong> {constraints.excludes || '\u2014'}
           </p>
+
+          <div className="position-excludes">
+            <h4>Position excludes</h4>
+            {Object.keys(constraints.positionExcludes || {}).length > 0 ? (
+              <ul>
+                {Object.entries(constraints.positionExcludes || {}).map(([ch, pos]) => (
+                  <li key={ch}>
+                    <code>{ch.toUpperCase()}</code> not at positions {pos.map((p) => p + 1).join(', ')}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="muted">— none —</p>
+            )}
+          </div>
+
+          <div className="letter-counts">
+            <h4>Letter counts (min / max)</h4>
+            {Object.keys(constraints.minCounts || {}).length > 0 ? (
+              <ul>
+                {Object.entries(constraints.minCounts || {}).map(([ch, min]) => (
+                  <li key={ch}>
+                    <code>{ch.toUpperCase()}</code> {min} / {constraints.maxCounts?.[ch] ?? '∞'}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="muted">— none —</p>
+            )}
+          </div>
+
+          <p className="muted">Example: Guessing <code>ADIEU</code> with A yellow at position 1 will show <code>A</code> not at position 1 and still require A elsewhere.</p>
         </section>
       </main>
 
