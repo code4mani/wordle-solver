@@ -33,6 +33,39 @@ header{display:flex;align-items:baseline;gap:16px}
 .cell.present{background:#b58900;color:#071017}
 .cell.correct{background:#16a34a}
 .row.active .cell{outline:2px solid rgba(255,255,255,0.03)}
+
+/* Clear visible indicator for the insertion/cursor position */
+.cell.current{
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.12), 0 6px 18px rgba(2,6,23,0.6);
+  transform: scale(1.03);
+  transition: box-shadow 120ms ease, transform 120ms ease;
+  position: relative;
+  z-index: 2;
+}
+
+/* Blinking caret for empty current cell */
+.cell.current[data-empty="true"]::after{
+  content: "";
+  position: absolute;
+  width: 2px;
+  height: 36%;
+  background: rgba(255,255,255,0.9);
+  animation: caret 1s steps(1) infinite;
+  right: 42%;
+  top: 32%;
+  border-radius: 1px;
+  opacity: 0.95;
+}
+
+@keyframes caret{
+  0%, 50%{opacity:0.95}
+  51%, 100%{opacity:0}
+}
+
+@media (max-width:600px){
+  .cell.current{box-shadow: 0 0 0 4px rgba(255,255,255,0.16);transform:scale(1.06)}
+}
+
 .grid-actions{min-width:220px}
 .grid-actions .suggestion-list{display:flex;flex-wrap:wrap;gap:8px}
 .suggestion{background:transparent;border:1px solid rgba(255,255,255,0.06);padding:6px 10px;border-radius:6px}

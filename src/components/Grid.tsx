@@ -21,6 +21,11 @@ export default function Grid({ onChange, suggestions = [], onFillSuggestion }: P
   const [grid, setGrid] = useState<Row[]>(() => makeEmptyGrid())
   const [rowIndex, setRowIndex] = useState(0)
   const colIndexRef = useRef(0)
+  const rowIndexRef = useRef(rowIndex)
+
+  useEffect(() => {
+    rowIndexRef.current = rowIndex
+  }, [rowIndex])
 
   useEffect(() => {
     onChange?.(parseFeedback(grid))
@@ -28,14 +33,21 @@ export default function Grid({ onChange, suggestions = [], onFillSuggestion }: P
 
   const letterStatuses = letterStatusMap(grid)
 
+  const setRow = useCallback((r: number) => {
+    setRowIndex(r)
+    rowIndexRef.current = r
+  }, [])
+
   const onScreenKey = useCallback((key: string) => {
+    const r = rowIndexRef.current
+
     if (key === 'Backspace') {
       setGrid((g) => {
         const copy = g.map((row) => row.map((cell) => ({ ...cell })))
         let c = colIndexRef.current
         if (c > 0) c -= 1
-        copy[rowIndex][c].letter = ''
-        copy[rowIndex][c].status = 'empty'
+        copy[r][c].letter = ''
+        copy[r][c].status = 'empty'
         colIndexRef.current = c
         return copy
       })
@@ -43,9 +55,10 @@ export default function Grid({ onChange, suggestions = [], onFillSuggestion }: P
     }
 
     if (key === 'Enter') {
-      const row = grid[rowIndex]
+      const row = grid[r]
       if (row && row.every((cell) => cell.letter)) {
-        setRowIndex((r) => Math.min(r + 1, grid.length - 1))
+        const next = Math.min(r + 1, grid.length - 1)
+        setRow(next)
         colIndexRef.current = 0
       }
       return
@@ -55,16 +68,16 @@ export default function Grid({ onChange, suggestions = [], onFillSuggestion }: P
       setGrid((g) => {
         const copy = g.map((row) => row.map((cell) => ({ ...cell })))
         const c = colIndexRef.current
-        if (c < copy[rowIndex].length) {
-          copy[rowIndex][c].letter = key.toLowerCase()
-          copy[rowIndex][c].status = 'empty'
-          colIndexRef.current = Math.min(c + 1, copy[rowIndex].length)
+        if (c < copy[r].length) {
+          copy[r][c].letter = key.toLowerCase()
+          copy[r][c].status = 'empty'
+          colIndexRef.current = Math.min(c + 1, copy[r].length)
         }
         return copy
       })
       return
     }
-  }, [grid, rowIndex])
+  }, [grid, setRow])
 
 
   const toggleStatus = useCallback((r: number, c: number) => {
@@ -81,16 +94,17 @@ export default function Grid({ onChange, suggestions = [], onFillSuggestion }: P
 
   const handleKey = useCallback(
     (e: KeyboardEvent) => {
-      if (rowIndex >= grid.length) return
+      const r = rowIndexRef.current
+      if (r >= grid.length) return
       const key = e.key
       if (/^[a-zA-Z]$/.test(key)) {
         setGrid((g) => {
           const copy = g.map((row) => row.map((cell) => ({ ...cell })))
           const c = colIndexRef.current
-          if (c < copy[rowIndex].length) {
-            copy[rowIndex][c].letter = key.toLowerCase()
-            copy[rowIndex][c].status = 'empty'
-            colIndexRef.current = Math.min(c + 1, copy[rowIndex].length)
+          if (c < copy[r].length) {
+            copy[r][c].letter = key.toLowerCase()
+            copy[r][c].status = 'empty'
+            colIndexRef.current = Math.min(c + 1, copy[r].length)
           }
           return copy
         })
@@ -100,23 +114,24 @@ export default function Grid({ onChange, suggestions = [], onFillSuggestion }: P
           const copy = g.map((row) => row.map((cell) => ({ ...cell })))
           let c = colIndexRef.current
           if (c > 0) c -= 1
-          copy[rowIndex][c].letter = ''
-          copy[rowIndex][c].status = 'empty'
+          copy[r][c].letter = ''
+          copy[r][c].status = 'empty'
           colIndexRef.current = c
           return copy
         })
         e.preventDefault()
       } else if (key === 'Enter') {
         // If current row has 5 letters, move to next row
-        const row = grid[rowIndex]
+        const row = grid[r]
         if (row && row.every((cell) => cell.letter)) {
-          setRowIndex((r) => Math.min(r + 1, grid.length - 1))
+          const next = Math.min(r + 1, grid.length - 1)
+          setRow(next)
           colIndexRef.current = 0
         }
         e.preventDefault()
       }
     },
-    [grid, rowIndex],
+    [grid, setRow],
   )
 
   useEffect(() => {
@@ -127,11 +142,13 @@ export default function Grid({ onChange, suggestions = [], onFillSuggestion }: P
   function applySuggestion(word: string) {
     setGrid((g) => {
       const copy = g.map((row) => row.map((cell) => ({ ...cell })))
-      const r = rowIndex
+      const r = rowIndexRef.current
       for (let i = 0; i < 5; i++) {
         copy[r][i].letter = word[i] || ''
         copy[r][i].status = 'empty'
       }
+      // Place cursor at end of filled letters
+      colIndexRef.current = Math.min(word.length, copy[r].length)
       return copy
     })
     onFillSuggestion?.(word)
@@ -139,7 +156,7 @@ export default function Grid({ onChange, suggestions = [], onFillSuggestion }: P
 
   function reset() {
     setGrid(makeEmptyGrid())
-    setRowIndex(0)
+    setRow(0)
     colIndexRef.current = 0
   }
 
@@ -147,17 +164,22 @@ export default function Grid({ onChange, suggestions = [], onFillSuggestion }: P
     <div className="grid-wrapper">
       <div className="grid">
         {grid.map((row, r) => (
-          <div key={r} className={`row ${r === rowIndex ? 'active' : ''}`}>
-            {row.map((cell, c) => (
-              <button
-                key={c}
-                className={`cell ${cell.status}`}
-                onClick={() => toggleStatus(r, c)}
-                aria-label={`r${r}c${c}`}
-              >
-                {cell.letter.toUpperCase()}
-              </button>
-            ))}
+          <div key={r} className={`row ${r === rowIndexRef.current ? 'active' : ''}`}>
+            {row.map((cell, c) => {
+              const isCurrent = r === rowIndexRef.current && c === colIndexRef.current
+              return (
+                <button
+                  key={c}
+                  className={`cell ${cell.status} ${isCurrent ? 'current' : ''}`}
+                  data-empty={cell.status === 'empty'}
+                  onClick={() => toggleStatus(r, c)}
+                  aria-label={`r${r}c${c}`}
+                  aria-current={isCurrent ? 'true' : undefined}
+                >
+                  {cell.letter.toUpperCase()}
+                </button>
+              )
+            })}
           </div>
         ))}
       </div>
@@ -175,9 +197,9 @@ export default function Grid({ onChange, suggestions = [], onFillSuggestion }: P
         </div>
 
         <div className="controls">
-          <button onClick={() => setRowIndex((r) => Math.max(r - 1, 0))}>Prev Row</button>
+          <button onClick={() => setRow(Math.max(rowIndexRef.current - 1, 0))}>Prev Row</button>
           <button
-            onClick={() => setRowIndex((r) => Math.min(r + 1, grid.length - 1))}
+            onClick={() => setRow(Math.min(rowIndexRef.current + 1, grid.length - 1))}
           >
             Next Row
           </button>
